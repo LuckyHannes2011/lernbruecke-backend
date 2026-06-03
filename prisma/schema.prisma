@@ -62,6 +62,7 @@ model TutorProfile {
   
   reviews     Review[]
   bookings    Booking[]
+  favorites   Favorite[]
 }
 
 model StudentProfile {
@@ -72,32 +73,35 @@ model StudentProfile {
   updatedAt DateTime @updatedAt
   
   bookings  Booking[]
+  favorites Favorite[]
 }
 
 model Booking {
-  id             String        @id @default(cuid())
-  studentId      String
-  student        StudentProfile @relation(fields: [studentId], references: [id])
-  tutorId        String
-  tutor          TutorProfile   @relation(fields: [tutorId], references: [id])
-  dateTime       DateTime
-  duration       Int
-  status         BookingStatus  @default(PENDING_PAYMENT)
-  totalAmount    Float
+  id              String        @id @default(cuid())
+  studentId       String
+  student         StudentProfile @relation(fields: [studentId], references: [id])
+  tutorId         String
+  tutor           TutorProfile   @relation(fields: [tutorId], references: [id])
+  dateTime        DateTime
+  duration        Int
+  status          BookingStatus  @default(PENDING_PAYMENT)
+  totalAmount     Float
   stripePaymentId String?
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
   
-  review         Review?
+  review          Review?
 }
 
 model Review {
-  id        String   @id @default(cuid())
-  bookingId String   @unique
-  booking   Booking  @relation(fields: [bookingId], references: [id])
-  rating    Int
-  comment   String?
-  createdAt DateTime @default(now())
+  id              String       @id @default(cuid())
+  bookingId       String       @unique
+  booking         Booking      @relation(fields: [bookingId], references: [id])
+  tutorProfileId  String
+  tutorProfile    TutorProfile @relation(fields: [tutorProfileId], references: [id])
+  rating          Int
+  comment         String?
+  createdAt       DateTime     @default(now())
 }
 
 model Message {
