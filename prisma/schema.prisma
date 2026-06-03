@@ -1,0 +1,193 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role          { STUDENT TUTOR ADMIN }
+enum BookingStatus { PENDING_PAYMENT CONFIRMED COMPLETED CANCELLED }
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String?
+  googleId     String?  @unique
+  role         Role     @default(STUDENT)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  refreshTokens  RefreshToken[]
+  tutorProfile   TutorProfile?
+  studentProfile StudentProfile?
+  sentMessages   Message[]         @relation("SentMessages")
+  conversations  ConversationParticipant[]
+  pushSubs       PushSubscription[]
+  favorites      Favorite[]
+  notifications  Notification[]
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  email     String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model TutorProfile {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name         String
+  bio          String?
+  subjects     String[]
+  levels       String[]
+  location     String?
+  pricePerHour Float    @default(10)
+  avatarUrl    String?
+  isActive     Boolean  @default(true)
+  tags         String[]
+  avgRating    Float    @default(0)
+  reviewCount  Int      @default(0)
+  totalEarnings Float   @default(0)
+  stripeAccountId  String?
+  stripeOnboarded  Boolean @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  availability Availability[]
+  bookings     Booking[]      @relation("TutorBookings")
+  reviews      Review[]       @relation("TutorReviews")
+  favoritedBy  Favorite[]
+}
+
+model StudentProfile {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  avatarUrl String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  bookings Booking[] @relation("StudentBookings")
+  reviews  Review[]  @relation("StudentReviews")
+}
+
+model Availability {
+  id        String       @id @default(cuid())
+  tutorId   String
+  tutor     TutorProfile @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+  dayOfWeek Int
+  startTime String
+  endTime   String
+}
+
+model Conversation {
+  id           String                    @id @default(cuid())
+  participants ConversationParticipant[]
+  messages     Message[]
+  createdAt    DateTime                  @default(now())
+  updatedAt    DateTime                  @updatedAt
+}
+
+model ConversationParticipant {
+  conversationId String
+  userId         String
+  lastReadAt     DateTime?
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@id([conversationId, userId])
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  senderId       String
+  text           String?
+  fileUrl        String?
+  fileType       String?
+  createdAt      DateTime     @default(now())
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User         @relation("SentMessages", fields: [senderId], references: [id])
+}
+
+model Booking {
+  id              String        @id @default(cuid())
+  tutorId         String
+  studentId       String
+  subject         String
+  scheduledAt     DateTime
+  durationMinutes Int           @default(60)
+  priceTotal      Float
+  platformFee     Float
+  tutorPayout     Float
+  status          BookingStatus @default(PENDING_PAYMENT)
+  stripeSessionId String?
+  stripePaymentId String?
+  notes           String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  tutor   TutorProfile   @relation("TutorBookings",   fields: [tutorId],   references: [id])
+  student StudentProfile @relation("StudentBookings", fields: [studentId], references: [id])
+  review  Review?
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  bookingId String   @unique
+  tutorId   String
+  studentId String
+  rating    Int
+  comment   String?
+  reply     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  booking Booking        @relation(fields: [bookingId],  references: [id])
+  tutor   TutorProfile   @relation("TutorReviews",   fields: [tutorId],   references: [id])
+  student StudentProfile @relation("StudentReviews", fields: [studentId], references: [id])
+}
+
+model Favorite {
+  userId    String
+  tutorId   String
+  createdAt DateTime     @default(now())
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tutor     TutorProfile @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+  @@id([userId, tutorId])
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  body      String
+  link      String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
