@@ -73,7 +73,6 @@ model StudentProfile {
   updatedAt DateTime @updatedAt
   
   bookings  Booking[]
-  favorites Favorite[]
 }
 
 model Booking {
@@ -146,13 +145,13 @@ model PushSubscription {
 
 model Favorite {
   id        String   @id @default(cuid())
-  studentId String
-  student   StudentProfile @relation(fields: [studentId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   tutorId   String
-  tutor     TutorProfile   @relation(fields: [tutorId], references: [id])
+  tutor     TutorProfile @relation(fields: [tutorId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
   
-  @@unique([studentId, tutorId])
+  @@unique([userId, tutorId])
 }
 
 model Notification {
