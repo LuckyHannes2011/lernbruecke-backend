@@ -28,7 +28,7 @@ model User {
   role         Role     @default(STUDENT)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
-
+  
   refreshTokens  RefreshToken[]
   tutorProfile   TutorProfile?
   studentProfile StudentProfile?
@@ -43,161 +43,120 @@ model RefreshToken {
   id        String   @id @default(cuid())
   token     String   @unique
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  expiresAt DateTime
-  createdAt DateTime @default(now())
-}
-
-model PasswordResetToken {
-  id        String   @id @default(cuid())
-  email     String
-  token     String   @unique
+  user      User     @relation(fields: [userId], references: [id])
   expiresAt DateTime
   createdAt DateTime @default(now())
 }
 
 model TutorProfile {
-  id           String   @id @default(cuid())
-  userId       String   @unique
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name         String
-  bio          String?
-  subjects     String[]
-  levels       String[]
-  location     String?
-  pricePerHour Float    @default(10)
-  avatarUrl    String?
-  isActive     Boolean  @default(true)
-  tags         String[]
-  avgRating    Float    @default(0)
-  reviewCount  Int      @default(0)
-  totalEarnings Float   @default(0)
-  stripeAccountId  String?
-  stripeOnboarded  Boolean @default(false)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  availability Availability[]
-  bookings     Booking[]      @relation("TutorBookings")
-  reviews      Review[]       @relation("TutorReviews")
-  favoritedBy  Favorite[]
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id])
+  title       String
+  description String?
+  subjects    String[]
+  hourlyRate  Float
+  isVerified  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  reviews     Review[]
+  bookings    Booking[]
 }
 
 model StudentProfile {
   id        String   @id @default(cuid())
   userId    String   @unique
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name      String
-  avatarUrl String?
+  user      User     @relation(fields: [userId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  bookings Booking[] @relation("StudentBookings")
-  reviews  Review[]  @relation("StudentReviews")
-}
-
-model Availability {
-  id        String       @id @default(cuid())
-  tutorId   String
-  tutor     TutorProfile @relation(fields: [tutorId], references: [id], onDelete: Cascade)
-  dayOfWeek Int
-  startTime String
-  endTime   String
-}
-
-model Conversation {
-  id           String                    @id @default(cuid())
-  participants ConversationParticipant[]
-  messages     Message[]
-  createdAt    DateTime                  @default(now())
-  updatedAt    DateTime                  @updatedAt
-}
-
-model ConversationParticipant {
-  conversationId String
-  userId         String
-  lastReadAt     DateTime?
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  @@id([conversationId, userId])
-}
-
-model Message {
-  id             String       @id @default(cuid())
-  conversationId String
-  senderId       String
-  text           String?
-  fileUrl        String?
-  fileType       String?
-  createdAt      DateTime     @default(now())
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  sender         User         @relation("SentMessages", fields: [senderId], references: [id])
+  
+  bookings  Booking[]
 }
 
 model Booking {
-  id              String        @id @default(cuid())
-  tutorId         String
-  studentId       String
-  subject         String
-  scheduledAt     DateTime
-  durationMinutes Int           @default(60)
-  priceTotal      Float
-  platformFee     Float
-  tutorPayout     Float
-  status          BookingStatus @default(PENDING_PAYMENT)
-  stripeSessionId String?
+  id             String        @id @default(cuid())
+  studentId      String
+  student        StudentProfile @relation(fields: [studentId], references: [id])
+  tutorId        String
+  tutor          TutorProfile   @relation(fields: [tutorId], references: [id])
+  dateTime       DateTime
+  duration       Int
+  status         BookingStatus  @default(PENDING_PAYMENT)
+  totalAmount    Float
   stripePaymentId String?
-  notes           String?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-
-  tutor   TutorProfile   @relation("TutorBookings",   fields: [tutorId],   references: [id])
-  student StudentProfile @relation("StudentBookings", fields: [studentId], references: [id])
-  review  Review?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  
+  review         Review?
 }
 
 model Review {
   id        String   @id @default(cuid())
   bookingId String   @unique
-  tutorId   String
-  studentId String
+  booking   Booking  @relation(fields: [bookingId], references: [id])
   rating    Int
   comment   String?
-  reply     String?
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  booking Booking        @relation(fields: [bookingId],  references: [id])
-  tutor   TutorProfile   @relation("TutorReviews",   fields: [tutorId],   references: [id])
-  student StudentProfile @relation("StudentReviews", fields: [studentId], references: [id])
 }
 
-model Favorite {
-  userId    String
-  tutorId   String
-  createdAt DateTime     @default(now())
-  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tutor     TutorProfile @relation(fields: [tutorId], references: [id], onDelete: Cascade)
-  @@id([userId, tutorId])
+model Message {
+  id             String   @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  senderId       String
+  sender         User     @relation("SentMessages", fields: [senderId], references: [id])
+  content        String
+  isRead         Boolean  @default(false)
+  createdAt      DateTime @default(now())
+}
+
+model Conversation {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  messages     Message[]
+  participants ConversationParticipant[]
+}
+
+model ConversationParticipant {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  userId         String
+  user           User         @relation(fields: [userId], references: [id])
+  
+  @@unique([conversationId, userId])
 }
 
 model PushSubscription {
   id        String   @id @default(cuid())
   userId    String
+  user      User     @relation(fields: [userId], references: [id])
   endpoint  String   @unique
-  p256dh    String
-  auth      String
+  keysAuth  String
+  keysP256dh String
   createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Favorite {
+  id        String   @id @default(cuid())
+  studentId String
+  student   StudentProfile @relation(fields: [studentId], references: [id])
+  tutorId   String
+  tutor     TutorProfile   @relation(fields: [tutorId], references: [id])
+  createdAt DateTime @default(now())
+  
+  @@unique([studentId, tutorId])
 }
 
 model Notification {
   id        String   @id @default(cuid())
   userId    String
+  user      User     @relation(fields: [userId], references: [id])
   title     String
   body      String
-  link      String?
-  read      Boolean  @default(false)
+  isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
