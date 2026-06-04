@@ -21,23 +21,23 @@ enum BookingStatus {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  name         String?  
-  passwordHash String?
-  googleId     String?  @unique
-  role         Role     @default(STUDENT)
-  avatarUrl    String?
-  stripeOnboarded Boolean? @default(false)
-  avgRating    Float?   @default(0)
-  reviewCount  Int?     @default(0)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  
+  id              String    @id @default(cuid())
+  email           String    @unique
+  name            String?
+  passwordHash    String?
+  googleId        String?   @unique
+  role            Role      @default(STUDENT)
+  avatarUrl       String?
+  stripeOnboarded Boolean?  @default(false)
+  avgRating       Float?    @default(0)
+  reviewCount     Int?      @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
   refreshTokens  RefreshToken[]
   tutorProfile   TutorProfile?
   studentProfile StudentProfile?
-  sentMessages   Message[]         @relation("SentMessages")
+  sentMessages   Message[]                   @relation("SentMessages")
   conversations  ConversationParticipant[]
   pushSubs       PushSubscription[]
   favorites      Favorite[]
@@ -56,17 +56,16 @@ model RefreshToken {
 model TutorProfile {
   id          String   @id @default(cuid())
   userId      String   @unique
-  name        String?  
+  name        String?
   user        User     @relation(fields: [userId], references: [id])
-  title       String
   description String?
   subjects    String[]
-  hourlyRate  Float
+  hourlyRate  Float    @default(15)
   isVerified  Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  
-  // Neue Felder für deinen Code
+
+  // Tutor-spezifische Felder
   levels           String[]  @default([])
   tags             String[]  @default([])
   pricePerHour     Float?    @default(0)
@@ -83,10 +82,11 @@ model TutorProfile {
   responseTime     Int?      @default(0)
   avgRating        Float?    @default(0)
   reviewCount      Int?      @default(0)
-  
-  reviews     Review[]
-  bookings    Booking[]
-  favorites   Favorite[]
+
+  availability Availability[]
+  reviews      Review[]
+  bookings     Booking[]
+  favorites    Favorite[]
 }
 
 model StudentProfile {
@@ -97,8 +97,8 @@ model StudentProfile {
   avatarUrl String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
-  bookings  Booking[]
+
+  bookings Booking[]
 }
 
 model Booking {
@@ -112,39 +112,54 @@ model Booking {
   status          BookingStatus  @default(PENDING_PAYMENT)
   totalAmount     Float
   stripePaymentId String?
+  subject         String?
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
-  
-  review          Review?
+
+  review Review?
 }
 
 model Review {
-  id              String       @id @default(cuid())
-  bookingId       String       @unique
-  booking         Booking      @relation(fields: [bookingId], references: [id])
-  tutorProfileId  String
-  tutorProfile    TutorProfile @relation(fields: [tutorProfileId], references: [id])
-  rating          Int
-  comment         String?
-  createdAt       DateTime     @default(now())
+  id             String       @id @default(cuid())
+  bookingId      String       @unique
+  booking        Booking      @relation(fields: [bookingId], references: [id])
+  tutorProfileId String
+  tutorProfile   TutorProfile @relation(fields: [tutorProfileId], references: [id])
+  studentId      String?
+  rating         Int
+  comment        String?
+  createdAt      DateTime     @default(now())
+}
+
+model Availability {
+  id             String       @id @default(cuid())
+  tutorProfileId String
+  tutorProfile   TutorProfile @relation(fields: [tutorProfileId], references: [id])
+  dayOfWeek      Int
+  startTime      String
+  endTime        String
+  isRecurring    Boolean      @default(true)
+  date           DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 }
 
 model Message {
-  id             String   @id @default(cuid())
+  id             String       @id @default(cuid())
   conversationId String
   conversation   Conversation @relation(fields: [conversationId], references: [id])
   senderId       String
-  sender         User     @relation("SentMessages", fields: [senderId], references: [id])
+  sender         User         @relation("SentMessages", fields: [senderId], references: [id])
   content        String
-  isRead         Boolean  @default(false)
-  createdAt      DateTime @default(now())
+  isRead         Boolean      @default(false)
+  createdAt      DateTime     @default(now())
 }
 
 model Conversation {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   messages     Message[]
   participants ConversationParticipant[]
 }
@@ -155,18 +170,18 @@ model ConversationParticipant {
   conversation   Conversation @relation(fields: [conversationId], references: [id])
   userId         String
   user           User         @relation(fields: [userId], references: [id])
-  
+
   @@unique([conversationId, userId])
 }
 
 model PushSubscription {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  endpoint  String   @unique
-  keysAuth  String
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  endpoint   String   @unique
+  keysAuth   String
   keysP256dh String
-  createdAt DateTime @default(now())
+  createdAt  DateTime @default(now())
 }
 
 model Favorite {
@@ -176,7 +191,7 @@ model Favorite {
   tutorId   String
   tutor     TutorProfile @relation(fields: [tutorId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
-  
+
   @@unique([userId, tutorId])
 }
 
