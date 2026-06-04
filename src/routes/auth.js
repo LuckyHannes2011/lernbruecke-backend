@@ -36,9 +36,11 @@ router.post('/register', authLimiter, async (req, res) => {
 
     const user = await prisma.user.create({
       data: {
-        email, passwordHash, role: userRole,
+        email, 
+        passwordHash, 
+        role: userRole,
         ...(userRole === 'TUTOR'
-          ? { tutorProfile: { create: { name, subjects: [], levels: [], tags: [], pricePerHour: 10, isActive: true } } }
+          ? { tutorProfile: { create: { name, subjects: [], hourlyRate: 10 } } }
           : { studentProfile: { create: { name } } }),
       },
       include: { tutorProfile: true, studentProfile: true },
@@ -110,7 +112,7 @@ router.post('/forgot-password', authLimiter, async (req, res) => {
   const { email } = req.body;
   try {
     const user = await prisma.user.findUnique({ where: { email } });
-    if (!user) return res.json({ ok: true }); // Kein E-Mail-Enumeration
+    if (!user) return res.json({ ok: true });
     const token = crypto.randomBytes(32).toString('hex');
     await prisma.passwordResetToken.create({ data: { email, token, expiresAt: new Date(Date.now() + 60*60*1000) } });
     await sendEmail(email, 'Passwort zurücksetzen',
@@ -149,9 +151,11 @@ router.post('/google', authLimiter, async (req, res) => {
       const finalName = name || gName;
       user = await prisma.user.create({
         data: {
-          email, googleId, role: userRole,
+          email, 
+          googleId, 
+          role: userRole,
           ...(userRole === 'TUTOR'
-            ? { tutorProfile: { create: { name: finalName, subjects: [], levels: [], tags: [], pricePerHour: 10, isActive: true } } }
+            ? { tutorProfile: { create: { name: finalName, subjects: [], hourlyRate: 10 } } }
             : { studentProfile: { create: { name: finalName } } }),
         },
         include: { tutorProfile: true, studentProfile: true },
