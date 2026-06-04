@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const bcrypt  = require('bcryptjs');
 const crypto  = require('crypto');
@@ -24,8 +25,10 @@ function setRefreshCookie(res, token) {
 // POST /api/auth/register
 router.post('/register', authLimiter, async (req, res) => {
   const { email, password, role, name } = req.body;
-  if (!email || !password || !name) return res.status(400).json({ error: 'Alle Felder erforderlich' });
-  if (password.length < 8)           return res.status(400).json({ error: 'Passwort min. 8 Zeichen' });
+  if (!email || !password || !name)
+    return res.status(400).json({ error: 'Alle Felder erforderlich' });
+  if (password.length < 8)
+    return res.status(400).json({ error: 'Passwort min. 8 Zeichen' });
 
   try {
     if (await prisma.user.findUnique({ where: { email } }))
@@ -36,28 +39,71 @@ router.post('/register', authLimiter, async (req, res) => {
 
     const user = await prisma.user.create({
       data: {
-        email, 
-        passwordHash, 
+        email,
+        passwordHash,
         role: userRole,
         ...(userRole === 'TUTOR'
-          ? { tutorProfile: { create: { name, subjects: [], hourlyRate: 10 } } }
-          : { studentProfile: { create: { name } } }),
+          ? {
+              tutorProfile: {
+                create: {
+                  name,
+                  bio: null,
+                  subjects: [],
+                  levels: [],
+                  tags: [],
+                  pricePerHour: 10,
+                  location: null,
+                  isActive: true,
+                  avatarUrl: null,
+                  stripeAccountId: null,
+                  stripeOnboarded: false,
+                  avgRating: 0,
+                  reviewCount: 0,
+                  totalEarnings: 0,
+                },
+              },
+            }
+          : {
+              studentProfile: {
+                create: { name },
+              },
+            }),
       },
       include: { tutorProfile: true, studentProfile: true },
     });
 
-    const { access, refresh } = generateTokens({ userId: user.id, role: user.role, email: user.email });
-    await prisma.refreshToken.create({ data: { token: refresh, userId: user.id, expiresAt: new Date(Date.now() + 7*24*60*60*1000) } });
+    const { access, refresh } = generateTokens({
+      userId: user.id,
+      role:   user.role,
+      email:  user.email,
+    });
+    await prisma.refreshToken.create({
+      data: {
+        token:     refresh,
+        userId:    user.id,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      },
+    });
     setRefreshCookie(res, refresh);
 
-    await sendEmail(email, 'Willkommen bei LernBrücke!',
-      `<h2>Hallo ${name}! 👋</h2><p>Willkommen auf LernBrücke – der Nachhilfeplattform für Schüler in der Region Freiburg.</p>${userRole==='TUTOR'?'<p>Dein Profil ist sofort aktiv. Ergänze jetzt deine Fächer und einen kurzen Text über dich!</p>':'<p>Jetzt kannst du Tutoren in deiner Nähe finden und direkt buchen.</p>'}`);
+    await sendEmail(
+      email,
+      'Willkommen bei LernBrücke!',
+      `<h2>Hallo ${name}!</h2><p>Willkommen auf LernBrücke – der Nachhilfeplattform für Schüler in der Region Freiburg.</p>${
+        userRole === 'TUTOR'
+          ? '<p>Dein Profil ist sofort aktiv. Ergänze jetzt deine Fächer!</p>'
+          : '<p>Finde jetzt Tutoren in deiner Nähe.</p>'
+      }`
+    );
 
     const profile = user.tutorProfile || user.studentProfile;
-    res.status(201).json({ access, user: { id: user.id, email, role: user.role, name, profile } });
+    res.status(201).json({
+      access,
+      user: { id: user.id, email, role: user.role, name, profile },
+    });
   } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: 'Registrierung fehlgeschlagen' });
+    console.error('Register error:', e);
+    res.status(500).json({ error: 'Registrierung fehlgeschlagen: ' + e.message });
   }
 });
 
@@ -69,17 +115,34 @@ router.post('/login', authLimiter, async (req, res) => {
       where: { email },
       include: { tutorProfile: true, studentProfile: true },
     });
-    if (!user?.passwordHash) return res.status(401).json({ error: 'Ungültige Anmeldedaten' });
+    if (!user?.passwordHash)
+      return res.status(401).json({ error: 'Ungültige Anmeldedaten' });
     if (!await bcrypt.compare(password, user.passwordHash))
       return res.status(401).json({ error: 'Ungültige Anmeldedaten' });
 
-    const { access, refresh } = generateTokens({ userId: user.id, role: user.role, email: user.email });
-    await prisma.refreshToken.create({ data: { token: refresh, userId: user.id, expiresAt: new Date(Date.now() + 7*24*60*60*1000) } });
+    const { access, refresh } = generateTokens({
+      userId: user.id,
+      role:   user.role,
+      email:  user.email,
+    });
+    await prisma.refreshToken.create({
+      data: {
+        token:     refresh,
+        userId:    user.id,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      },
+    });
     setRefreshCookie(res, refresh);
 
     const profile = user.tutorProfile || user.studentProfile;
-    res.json({ access, user: { id: user.id, email, role: user.role, name: profile?.name, profile } });
-  } catch { res.status(500).json({ error: 'Login fehlgeschlagen' }); }
+    res.json({
+      access,
+      user: { id: user.id, email, role: user.role, name: profile?.name, profile },
+    });
+  } catch (e) {
+    console.error('Login error:', e);
+    res.status(500).json({ error: 'Login fehlgeschlagen' });
+  }
 });
 
 // POST /api/auth/refresh
@@ -89,14 +152,27 @@ router.post('/refresh', async (req, res) => {
   try {
     const payload = verifyRefresh(token);
     const stored  = await prisma.refreshToken.findUnique({ where: { token } });
-    if (!stored || stored.expiresAt < new Date()) return res.status(401).json({ error: 'Token abgelaufen' });
+    if (!stored || stored.expiresAt < new Date())
+      return res.status(401).json({ error: 'Token abgelaufen' });
 
     await prisma.refreshToken.delete({ where: { token } });
-    const { access, refresh } = generateTokens({ userId: payload.userId, role: payload.role, email: payload.email });
-    await prisma.refreshToken.create({ data: { token: refresh, userId: payload.userId, expiresAt: new Date(Date.now() + 7*24*60*60*1000) } });
+    const { access, refresh } = generateTokens({
+      userId: payload.userId,
+      role:   payload.role,
+      email:  payload.email,
+    });
+    await prisma.refreshToken.create({
+      data: {
+        token:     refresh,
+        userId:    payload.userId,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      },
+    });
     setRefreshCookie(res, refresh);
     res.json({ access });
-  } catch { res.status(401).json({ error: 'Ungültiger Refresh-Token' }); }
+  } catch (e) {
+    res.status(401).json({ error: 'Ungültiger Refresh-Token' });
+  }
 });
 
 // POST /api/auth/logout
@@ -114,31 +190,48 @@ router.post('/forgot-password', authLimiter, async (req, res) => {
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) return res.json({ ok: true });
     const token = crypto.randomBytes(32).toString('hex');
-    await prisma.passwordResetToken.create({ data: { email, token, expiresAt: new Date(Date.now() + 60*60*1000) } });
-    await sendEmail(email, 'Passwort zurücksetzen',
-      `<p>Klicke hier um dein Passwort zurückzusetzen (1 Stunde gültig):</p><p><a href="${process.env.FRONTEND_URL}/reset-password?token=${token}">Passwort zurücksetzen</a></p>`);
+    await prisma.passwordResetToken.create({
+      data: { email, token, expiresAt: new Date(Date.now() + 60 * 60 * 1000) },
+    });
+    await sendEmail(
+      email,
+      'Passwort zurücksetzen',
+      `<p><a href="${process.env.FRONTEND_URL}/reset-password?token=${token}">Passwort zurücksetzen</a> (1 Stunde gültig)</p>`
+    );
     res.json({ ok: true });
-  } catch { res.status(500).json({ error: 'Fehler beim Senden' }); }
+  } catch (e) {
+    res.status(500).json({ error: 'Fehler beim Senden' });
+  }
 });
 
 // POST /api/auth/reset-password
 router.post('/reset-password', authLimiter, async (req, res) => {
   const { token, password } = req.body;
-  if (!password || password.length < 8) return res.status(400).json({ error: 'Passwort min. 8 Zeichen' });
+  if (!password || password.length < 8)
+    return res.status(400).json({ error: 'Passwort min. 8 Zeichen' });
   try {
     const record = await prisma.passwordResetToken.findUnique({ where: { token } });
-    if (!record || record.expiresAt < new Date()) return res.status(400).json({ error: 'Token ungültig oder abgelaufen' });
-    await prisma.user.update({ where: { email: record.email }, data: { passwordHash: await bcrypt.hash(password, 12) } });
+    if (!record || record.expiresAt < new Date())
+      return res.status(400).json({ error: 'Token ungültig oder abgelaufen' });
+    await prisma.user.update({
+      where: { email: record.email },
+      data:  { passwordHash: await bcrypt.hash(password, 12) },
+    });
     await prisma.passwordResetToken.delete({ where: { token } });
     res.json({ ok: true });
-  } catch { res.status(500).json({ error: 'Fehler' }); }
+  } catch (e) {
+    res.status(500).json({ error: 'Fehler' });
+  }
 });
 
 // POST /api/auth/google
 router.post('/google', authLimiter, async (req, res) => {
   const { idToken, role, name } = req.body;
   try {
-    const ticket  = await gClient.verifyIdToken({ idToken, audience: process.env.GOOGLE_CLIENT_ID });
+    const ticket  = await gClient.verifyIdToken({
+      idToken,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
     const { sub: googleId, email, name: gName } = ticket.getPayload();
 
     let user = await prisma.user.findFirst({
@@ -151,12 +244,27 @@ router.post('/google', authLimiter, async (req, res) => {
       const finalName = name || gName;
       user = await prisma.user.create({
         data: {
-          email, 
-          googleId, 
+          email,
+          googleId,
           role: userRole,
           ...(userRole === 'TUTOR'
-            ? { tutorProfile: { create: { name: finalName, subjects: [], hourlyRate: 10 } } }
-            : { studentProfile: { create: { name: finalName } } }),
+            ? {
+                tutorProfile: {
+                  create: {
+                    name: finalName,
+                    subjects: [],
+                    levels: [],
+                    tags: [],
+                    pricePerHour: 10,
+                    isActive: true,
+                  },
+                },
+              }
+            : {
+                studentProfile: {
+                  create: { name: finalName },
+                },
+              }),
         },
         include: { tutorProfile: true, studentProfile: true },
       });
@@ -164,27 +272,50 @@ router.post('/google', authLimiter, async (req, res) => {
       await prisma.user.update({ where: { id: user.id }, data: { googleId } });
     }
 
-    const { access, refresh } = generateTokens({ userId: user.id, role: user.role, email: user.email });
-    await prisma.refreshToken.create({ data: { token: refresh, userId: user.id, expiresAt: new Date(Date.now() + 7*24*60*60*1000) } });
+    const { access, refresh } = generateTokens({
+      userId: user.id,
+      role:   user.role,
+      email:  user.email,
+    });
+    await prisma.refreshToken.create({
+      data: {
+        token:     refresh,
+        userId:    user.id,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      },
+    });
     setRefreshCookie(res, refresh);
 
     const profile = user.tutorProfile || user.studentProfile;
-    res.json({ access, user: { id: user.id, email: user.email, role: user.role, name: profile?.name, profile } });
+    res.json({
+      access,
+      user: { id: user.id, email: user.email, role: user.role, name: profile?.name, profile },
+    });
   } catch (e) {
-    console.error(e);
+    console.error('Google auth error:', e);
     res.status(400).json({ error: 'Google Login fehlgeschlagen' });
   }
 });
 
 // GET /api/auth/me
 router.get('/me', auth, async (req, res) => {
-  const user = await prisma.user.findUnique({
-    where: { id: req.user.userId },
-    include: { tutorProfile: true, studentProfile: true },
-  });
-  if (!user) return res.status(404).json({ error: 'Nicht gefunden' });
-  const profile = user.tutorProfile || user.studentProfile;
-  res.json({ id: user.id, email: user.email, role: user.role, name: profile?.name, profile });
+  try {
+    const user = await prisma.user.findUnique({
+      where:   { id: req.user.userId },
+      include: { tutorProfile: true, studentProfile: true },
+    });
+    if (!user) return res.status(404).json({ error: 'Nicht gefunden' });
+    const profile = user.tutorProfile || user.studentProfile;
+    res.json({
+      id:      user.id,
+      email:   user.email,
+      role:    user.role,
+      name:    profile?.name,
+      profile,
+    });
+  } catch (e) {
+    res.status(500).json({ error: 'Fehler' });
+  }
 });
 
 module.exports = router;
