@@ -7,6 +7,7 @@ const { initSocket } = require('./socket');
 const { generalLimiter } = require('./middleware/rateLimiter');
 
 const app = express();
+app.set('trust proxy', true);
 const server = http.createServer(app);
 initSocket(server);
 
