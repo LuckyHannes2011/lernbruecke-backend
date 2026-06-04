@@ -76,7 +76,7 @@ model StudentProfile {
   updatedAt DateTime @updatedAt
   
   bookings  Booking[]
-  favorites Favorite[]
+  // favorites Favorite[]   ← gelöscht
 }
 
 model Booking {
