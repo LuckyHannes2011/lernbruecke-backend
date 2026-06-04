@@ -7,8 +7,18 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Role          { STUDENT TUTOR ADMIN }
-enum BookingStatus { PENDING_PAYMENT CONFIRMED COMPLETED CANCELLED }
+enum Role {
+  STUDENT
+  TUTOR
+  ADMIN
+}
+
+enum BookingStatus {
+  PENDING_PAYMENT
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+}
 
 model User {
   id           String   @id @default(cuid())
