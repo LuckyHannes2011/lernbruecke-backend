@@ -4,11 +4,12 @@ RUN apk add --no-cache openssl
 
 WORKDIR /app
 
-COPY package*.json ./
+COPY . .
+
+RUN ls -la
+RUN ls -la prisma/ || echo "prisma folder not found"
 
 RUN npm install --legacy-peer-deps
-
-COPY . .
 
 RUN npx prisma generate
 
