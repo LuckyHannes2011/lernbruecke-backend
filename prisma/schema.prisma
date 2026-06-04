@@ -27,6 +27,10 @@ model User {
   passwordHash String?
   googleId     String?  @unique
   role         Role     @default(STUDENT)
+  avatarUrl    String?
+  stripeOnboarded Boolean? @default(false)
+  avgRating    Float?   @default(0)
+  reviewCount  Int?     @default(0)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   
@@ -62,6 +66,24 @@ model TutorProfile {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   
+  // Neue Felder für deinen Code
+  levels           String[]  @default([])
+  tags             String[]  @default([])
+  pricePerHour     Float?    @default(0)
+  isActive         Boolean   @default(true)
+  bio              String?
+  location         String?
+  avatarUrl        String?
+  stripeAccountId  String?
+  stripeOnboarded  Boolean   @default(false)
+  totalEarnings    Float?    @default(0)
+  completedSessions Int?    @default(0)
+  studentsCount    Int?      @default(0)
+  responseRate     Float?    @default(0)
+  responseTime     Int?      @default(0)
+  avgRating        Float?    @default(0)
+  reviewCount      Int?      @default(0)
+  
   reviews     Review[]
   bookings    Booking[]
   favorites   Favorite[]
@@ -72,11 +94,11 @@ model StudentProfile {
   userId    String   @unique
   name      String?
   user      User     @relation(fields: [userId], references: [id])
+  avatarUrl String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   
   bookings  Booking[]
-  // favorites Favorite[]   ← gelöscht
 }
 
 model Booking {
