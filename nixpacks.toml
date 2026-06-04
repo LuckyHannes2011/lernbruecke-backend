@@ -1,5 +1,0 @@
-[phases.release]
-cmds = ["npx prisma migrate deploy"]
-
-[start]
-cmd = "npm start"
