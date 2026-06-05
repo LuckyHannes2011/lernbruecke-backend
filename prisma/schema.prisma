@@ -7,8 +7,18 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Role          { STUDENT TUTOR ADMIN }
-enum BookingStatus { PENDING_PAYMENT CONFIRMED COMPLETED CANCELLED }
+enum Role {
+  STUDENT
+  TUTOR
+  ADMIN
+}
+
+enum BookingStatus {
+  PENDING_PAYMENT
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+}
 
 model User {
   id           String   @id @default(cuid())
@@ -22,7 +32,7 @@ model User {
   refreshTokens  RefreshToken[]
   tutorProfile   TutorProfile?
   studentProfile StudentProfile?
-  sentMessages   Message[]         @relation("SentMessages")
+  sentMessages   Message[]               @relation("SentMessages")
   conversations  ConversationParticipant[]
   pushSubs       PushSubscription[]
   favorites      Favorite[]
@@ -33,9 +43,10 @@ model RefreshToken {
   id        String   @id @default(cuid())
   token     String   @unique
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresAt DateTime
   createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model PasswordResetToken {
@@ -47,26 +58,26 @@ model PasswordResetToken {
 }
 
 model TutorProfile {
-  id            String   @id @default(cuid())
-  userId        String   @unique
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name          String
-  bio           String?
-  subjects      String[]
-  levels        String[]
-  location      String?
-  pricePerHour  Float    @default(10)
-  avatarUrl     String?
-  isActive      Boolean  @default(true)
-  tags          String[]
-  avgRating     Float    @default(0)
-  reviewCount   Int      @default(0)
-  totalEarnings Float    @default(0)
-  stripeAccountId  String?
-  stripeOnboarded  Boolean @default(false)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  name            String
+  bio             String?
+  subjects        String[]
+  levels          String[]
+  location        String?
+  pricePerHour    Float    @default(10)
+  avatarUrl       String?
+  isActive        Boolean  @default(true)
+  tags            String[]
+  avgRating       Float    @default(0)
+  reviewCount     Int      @default(0)
+  totalEarnings   Float    @default(0)
+  stripeAccountId String?
+  stripeOnboarded Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   availability Availability[]
   bookings     Booking[]      @relation("TutorBookings")
   reviews      Review[]       @relation("TutorReviews")
@@ -76,52 +87,57 @@ model TutorProfile {
 model StudentProfile {
   id        String   @id @default(cuid())
   userId    String   @unique
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   name      String
   avatarUrl String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   bookings Booking[] @relation("StudentBookings")
   reviews  Review[]  @relation("StudentReviews")
 }
 
 model Availability {
-  id        String       @id @default(cuid())
+  id        String   @id @default(cuid())
   tutorId   String
-  tutor     TutorProfile @relation(fields: [tutorId], references: [id], onDelete: Cascade)
   dayOfWeek Int
   startTime String
   endTime   String
+
+  tutor TutorProfile @relation(fields: [tutorId], references: [id], onDelete: Cascade)
 }
 
 model Conversation {
-  id           String                    @id @default(cuid())
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   participants ConversationParticipant[]
   messages     Message[]
-  createdAt    DateTime                  @default(now())
-  updatedAt    DateTime                  @updatedAt
 }
 
 model ConversationParticipant {
   conversationId String
   userId         String
   lastReadAt     DateTime?
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@id([conversationId, userId])
 }
 
 model Message {
-  id             String       @id @default(cuid())
+  id             String   @id @default(cuid())
   conversationId String
   senderId       String
   text           String?
   fileUrl        String?
   fileType       String?
-  createdAt      DateTime     @default(now())
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  sender         User         @relation("SentMessages", fields: [senderId], references: [id])
+  createdAt      DateTime @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User         @relation("SentMessages", fields: [senderId], references: [id])
 }
 
 model Booking {
@@ -165,9 +181,11 @@ model Review {
 model Favorite {
   userId    String
   tutorId   String
-  createdAt DateTime     @default(now())
-  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tutor     TutorProfile @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  user  User         @relation(fields: [userId],  references: [id], onDelete: Cascade)
+  tutor TutorProfile @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+
   @@id([userId, tutorId])
 }
 
@@ -178,7 +196,8 @@ model PushSubscription {
   p256dh    String
   auth      String
   createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Notification {
@@ -189,5 +208,6 @@ model Notification {
   link      String?
   read      Boolean  @default(false)
   createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
